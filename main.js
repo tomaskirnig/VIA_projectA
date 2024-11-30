@@ -18,21 +18,29 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function loadPortfolio() {
-    const portfolio = JSON.parse(localStorage.getItem('portfolio')) || [];
+    let portfolio = JSON.parse(localStorage.getItem('portfolio')) || [];
     const portfolioList = document.getElementById('portfolio-list');
 
-    portfolio.forEach(cryptoId => {
-        addPortfolioItem(cryptoId, portfolioList);
+    // Ensure all items in portfolio are objects with valid `cryptoId` and `currency`
+    //portfolio = portfolio.filter(item => item && typeof item.cryptoId === 'string' && typeof item.currency === 'string');
+
+    portfolio.forEach(({ cryptoId, currency }) => {
+        addPortfolioItem(cryptoId, currency, portfolioList); // Add to portfolio list
+        renderCoinSection(cryptoId, currency); // Display coin data
     });
+
+    // Save sanitized portfolio back to local storage
+    localStorage.setItem('portfolio', JSON.stringify(portfolio));
 }
 
-function addPortfolioItem(cryptoId, portfolioList) {
+
+function addPortfolioItem(cryptoId, currency, portfolioList) {
     const listItem = document.createElement('li');
     listItem.className = 'list-group-item portfolio-item';
-    listItem.textContent = cryptoId;
+    listItem.textContent = `${cryptoId.charAt(0).toUpperCase() + cryptoId.slice(1)} (${currency.toUpperCase()})`;
 
     listItem.addEventListener('click', function () {
-        const coinSection = document.getElementById(`coin-section-${cryptoId}-usd`);
+        const coinSection = document.getElementById(`coin-section-${cryptoId}-${currency}`);
         if (coinSection) {
             coinSection.scrollIntoView({ behavior: 'smooth' });
         } else {
@@ -43,20 +51,46 @@ function addPortfolioItem(cryptoId, portfolioList) {
     portfolioList.appendChild(listItem);
 }
 
-function saveToPortfolio(cryptoId) {
+function deletePortfolioItem(cryptoId, currency) {
     let portfolio = JSON.parse(localStorage.getItem('portfolio')) || [];
 
-    if (portfolio.includes(cryptoId)) {
-        alert('This coin is already in your portfolio.');
+    // Remove the coin from the portfolio
+    portfolio = portfolio.filter(item => item.cryptoId !== cryptoId || item.currency !== currency);
+    localStorage.setItem('portfolio', JSON.stringify(portfolio));
+
+    // Remove the coin from the portfolio list
+    const portfolioList = document.getElementById('portfolio-list');
+    const listItem = Array.from(portfolioList.children).find(
+        item => item.textContent === `${cryptoId.charAt(0).toUpperCase() + cryptoId.slice(1)} (${currency.toUpperCase()})`
+    );
+    if (listItem) {
+        portfolioList.removeChild(listItem);
+    }
+
+    alert(`${cryptoId} (${currency}) has been removed from your portfolio.`);
+}
+
+
+
+function saveToPortfolio(cryptoId, currency) {
+    let portfolio = JSON.parse(localStorage.getItem('portfolio')) || [];
+
+    // Check if the coin is already in the portfolio
+    if (portfolio.some(item => item.cryptoId === cryptoId && item.currency === currency)) {
+        alert(`${cryptoId} (${currency}) is already in your portfolio.`);
         return;
     }
 
-    portfolio.push(cryptoId);
+    // Add the new coin to the portfolio
+    portfolio.push({ cryptoId, currency });
     localStorage.setItem('portfolio', JSON.stringify(portfolio));
 
     const portfolioList = document.getElementById('portfolio-list');
-    addPortfolioItem(cryptoId, portfolioList);
+    addPortfolioItem(cryptoId, currency, portfolioList);
+
+    alert(`${cryptoId} (${currency}) has been added to your portfolio.`);
 }
+
 
 function populateCryptoDropdown() {
     console.log('Fetching cryptocurrency list...');
@@ -115,10 +149,15 @@ function populateCryptoDropdown() {
 function renderCoinSection(cryptoId, currency) {
     const coinSectionId = `coin-section-${cryptoId}-${currency}`;
 
-    if (document.getElementById(coinSectionId)) {
-        alert('This coin is already added.');
+    // Check if the coin section already exists
+    const existingSection = document.getElementById(coinSectionId);
+    if (existingSection) {
+        console.log(`Coin section for ${cryptoId} (${currency}) already exists.`);
         return;
     }
+
+    const portfolio = JSON.parse(localStorage.getItem('portfolio')) || [];
+    const isInPortfolio = portfolio.some(item => item.cryptoId === cryptoId && item.currency === currency);
 
     const coinContainer = document.getElementById('coin-container');
     const coinSection = document.createElement('div');
@@ -133,10 +172,20 @@ function renderCoinSection(cryptoId, currency) {
     coinTitle.textContent = 'Loading...';
 
     const portfolioBtn = document.createElement('button');
-    portfolioBtn.className = 'btn btn-success btn-sm';
-    portfolioBtn.textContent = 'Add to Portfolio';
+    portfolioBtn.className = isInPortfolio ? 'btn btn-danger btn-sm' : 'btn btn-success btn-sm';
+    portfolioBtn.textContent = isInPortfolio ? 'Remove from Portfolio' : 'Add to Portfolio';
+
+    // Toggle between adding and removing the coin from the portfolio
     portfolioBtn.addEventListener('click', function () {
-        saveToPortfolio(cryptoId);
+        if (portfolioBtn.textContent === 'Add to Portfolio') {
+            saveToPortfolio(cryptoId, currency);
+            portfolioBtn.textContent = 'Remove from Portfolio';
+            portfolioBtn.className = 'btn btn-danger btn-sm';
+        } else {
+            deletePortfolioItem(cryptoId, currency);
+            portfolioBtn.textContent = 'Add to Portfolio';
+            portfolioBtn.className = 'btn btn-success btn-sm';
+        }
     });
 
     const deleteBtn = document.createElement('button');

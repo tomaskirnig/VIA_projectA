@@ -1,3 +1,12 @@
+button {
+    transition: 0.3s;
+}
+
+button:hover {
+    transition: 0.3s;
+    border-radius: 10px; 
+}
+
 .container h1{
     text-align: center;
 }
@@ -10,11 +19,13 @@
     width: 70%;
     max-width: 1200px;
 }
-#crypto-form button{
-    transition: 0.5s;
+
+.portfolio-item{
+    cursor: pointer;
+    transition: 0.3s;
 }
 
-#crypto-form button:hover{
-    border-radius: 10px;
-    transition: 0.5s;
+.portfolio-item:hover{
+    background-color: #f4f4f4;
+    transition: 0.3s;
 }
