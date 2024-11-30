@@ -1,35 +1,71 @@
 document.addEventListener('DOMContentLoaded', function () {
-    // Populate cryptocurrency dropdown
     populateCryptoDropdown();
+    loadPortfolio(); // Load portfolio from local storage
 
-    // Handle form submission
     document.getElementById('crypto-form').addEventListener('submit', function (event) {
-        event.preventDefault(); // Prevent the form from submitting normally
+        event.preventDefault();
 
-        // Get user inputs
         const cryptoId = document.getElementById('crypto-select').value;
         const currency = document.getElementById('currency-select').value;
-        const days = document.getElementById('date-range').value;
 
-        // Validate inputs
-        if (!cryptoId || !currency || !days) {
+        if (!cryptoId || !currency) {
             alert('Please make sure all fields are selected.');
             return;
         }
 
-        // Fetch data and render coin section
-        renderCoinSection(cryptoId, currency, days);
+        renderCoinSection(cryptoId, currency);
     });
 });
 
-// Function to populate the cryptocurrency dropdown
+function loadPortfolio() {
+    const portfolio = JSON.parse(localStorage.getItem('portfolio')) || [];
+    const portfolioList = document.getElementById('portfolio-list');
+
+    portfolio.forEach(cryptoId => {
+        addPortfolioItem(cryptoId, portfolioList);
+    });
+}
+
+function addPortfolioItem(cryptoId, portfolioList) {
+    const listItem = document.createElement('li');
+    listItem.className = 'list-group-item portfolio-item';
+    listItem.textContent = cryptoId;
+
+    listItem.addEventListener('click', function () {
+        const coinSection = document.getElementById(`coin-section-${cryptoId}-usd`);
+        if (coinSection) {
+            coinSection.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            alert('This coin is not yet added to the tracker!');
+        }
+    });
+
+    portfolioList.appendChild(listItem);
+}
+
+function saveToPortfolio(cryptoId) {
+    let portfolio = JSON.parse(localStorage.getItem('portfolio')) || [];
+
+    if (portfolio.includes(cryptoId)) {
+        alert('This coin is already in your portfolio.');
+        return;
+    }
+
+    portfolio.push(cryptoId);
+    localStorage.setItem('portfolio', JSON.stringify(portfolio));
+
+    const portfolioList = document.getElementById('portfolio-list');
+    addPortfolioItem(cryptoId, portfolioList);
+}
+
 function populateCryptoDropdown() {
+    console.log('Fetching cryptocurrency list...');
     $.ajax({
         url: 'https://api.coingecko.com/api/v3/coins/markets',
         method: 'GET',
         dataType: 'json',
         data: {
-            vs_currency: 'usd', // Retrieve data in USD
+            vs_currency: 'usd', 
             order: 'market_cap_desc', // Order by market cap descending
             per_page: 250, // Max coins per page
             page: 1, // First page
@@ -76,59 +112,77 @@ function populateCryptoDropdown() {
     });
 }
 
-// Function to render the coin section
-function renderCoinSection(cryptoId, currency, days) {
+function renderCoinSection(cryptoId, currency) {
     const coinSectionId = `coin-section-${cryptoId}-${currency}`;
 
-    // Check if the coin section already exists
     if (document.getElementById(coinSectionId)) {
         alert('This coin is already added.');
         return;
     }
 
-    // Create the coin section
     const coinContainer = document.getElementById('coin-container');
     const coinSection = document.createElement('div');
     coinSection.id = coinSectionId;
     coinSection.className = 'coin-section card mb-4';
 
-    // Create card header
     const cardHeader = document.createElement('div');
     cardHeader.className = 'card-header d-flex justify-content-between align-items-center';
+
     const coinTitle = document.createElement('h5');
     coinTitle.className = 'mb-0';
     coinTitle.textContent = 'Loading...';
+
+    const portfolioBtn = document.createElement('button');
+    portfolioBtn.className = 'btn btn-success btn-sm';
+    portfolioBtn.textContent = 'Add to Portfolio';
+    portfolioBtn.addEventListener('click', function () {
+        saveToPortfolio(cryptoId);
+    });
+
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'btn btn-danger btn-sm';
     deleteBtn.textContent = 'Delete';
     deleteBtn.addEventListener('click', () => coinContainer.removeChild(coinSection));
+
     cardHeader.appendChild(coinTitle);
+    cardHeader.appendChild(portfolioBtn);
     cardHeader.appendChild(deleteBtn);
 
-    // Create card body
     const cardBody = document.createElement('div');
     cardBody.className = 'card-body';
+
+    const timeFrameSelector = document.createElement('select');
+    timeFrameSelector.className = 'form-control mb-3';
+    timeFrameSelector.innerHTML = `
+        <option value="7">1 Week</option>
+        <option value="30">1 Month</option>
+        <option value="90">3 Months</option>
+        <option value="365">1 Year</option>
+    `;
+    timeFrameSelector.value = "365";
+
     const currentPriceDiv = document.createElement('div');
     currentPriceDiv.className = 'current-price';
+
     const canvas = document.createElement('canvas');
     canvas.id = `chart-${cryptoId}-${currency}`;
+
+    cardBody.appendChild(timeFrameSelector);
     cardBody.appendChild(currentPriceDiv);
     cardBody.appendChild(canvas);
 
-    // Assemble coin section
     coinSection.appendChild(cardHeader);
     coinSection.appendChild(cardBody);
     coinContainer.appendChild(coinSection);
 
-    // Fetch current price and update the coin title
     fetchCurrentPrice(cryptoId, currency, currentPriceDiv, coinTitle);
-
-    // Fetch historical data and render chart
-    fetchHistoricalData(cryptoId, currency, days, canvas.id);
+    fetchHistoricalDataAndInitializeChart(cryptoId, currency, canvas.id, timeFrameSelector);
 }
+
 
 // Function to fetch current price and update the coin section
 function fetchCurrentPrice(cryptoId, currency, currentPriceDiv, coinTitle) {
+    console.log(`Fetching current price for ${cryptoId}...`);
     $.ajax({
         url: 'https://api.coingecko.com/api/v3/simple/price',
         method: 'GET',
@@ -157,22 +211,30 @@ function fetchCurrentPrice(cryptoId, currency, currentPriceDiv, coinTitle) {
     });
 }
 
-// Function to fetch historical data and render the chart
-function fetchHistoricalData(cryptoId, currency, days, canvasId) {
+// Function to fetch 1 year of historical data and initialize the chart
+function fetchHistoricalDataAndInitializeChart(cryptoId, currency, canvasId, timeFrameSelector) {
+    const url = `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart`;
+    console.log(`Fetching historical data for ${cryptoId}...`);
+
     $.ajax({
-        url: `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart`,
+        url: url,
         method: 'GET',
         dataType: 'json',
         data: {
             vs_currency: currency,
-            days: days
+            days: "365", // Fetch data for 1 year
         },
         success: function (data) {
-            const prices = data.prices;
-            const labels = prices.map(value => new Date(value[0]).toLocaleDateString());
-            const priceData = prices.map(value => value[1]);
+            const allData = data.prices; // Store all price data for 1 year
 
-            renderChart(labels, priceData, cryptoId, currency, canvasId);
+            // Default chart display (1 Year)
+            updateChart(allData, 365, canvasId);
+
+            // Handle time frame changes
+            timeFrameSelector.addEventListener('change', function () {
+                const selectedTimeFrame = parseInt(this.value, 10); // Get selected time frame
+                updateChart(allData, selectedTimeFrame, canvasId); // Update chart
+            });
         },
         error: function (error) {
             console.error('Error fetching historical data:', error);
@@ -181,16 +243,37 @@ function fetchHistoricalData(cryptoId, currency, days, canvasId) {
     });
 }
 
+// Function to update the chart based on the selected time frame
+function updateChart(allData, timeFrame, canvasId) {
+    // Filter data based on the selected time frame
+    const now = new Date();
+    const filteredData = allData.filter(value => {
+        const date = new Date(value[0]);
+        const timeDifference = (now - date) / (1000 * 60 * 60 * 24); // Difference in days
+        return timeDifference <= timeFrame;
+    });
+
+    const labels = filteredData.map(value => new Date(value[0]).toLocaleDateString());
+    const priceData = filteredData.map(value => value[1]);
+
+    renderChart(labels, priceData, canvasId);
+}
+
 // Function to render the chart
-function renderChart(labels, data, cryptoId, currency, canvasId) {
+function renderChart(labels, data, canvasId) {
     const ctx = document.getElementById(canvasId).getContext('2d');
 
-    new Chart(ctx, {
+    // Destroy existing chart if it exists
+    if (ctx.chart) {
+        ctx.chart.destroy();
+    }
+
+    ctx.chart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
             datasets: [{
-                label: `${cryptoId.toUpperCase()} Price in ${currency.toUpperCase()}`,
+                label: 'Price',
                 data: data,
                 borderColor: 'rgba(75, 192, 192, 1)',
                 fill: false,
@@ -205,7 +288,7 @@ function renderChart(labels, data, cryptoId, currency, canvasId) {
                 },
                 y: {
                     display: true,
-                    title: { display: true, text: `Price (${currency.toUpperCase()})` }
+                    title: { display: true, text: 'Price (USD)' }
                 }
             },
             plugins: {

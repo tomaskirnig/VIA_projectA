@@ -1,0 +1,20 @@
+.container h1{
+    text-align: center;
+}
+
+#crypto-form{
+    justify-items: center;
+}
+
+.form-group{
+    width: 70%;
+    max-width: 1200px;
+}
+#crypto-form button{
+    transition: 0.5s;
+}
+
+#crypto-form button:hover{
+    border-radius: 10px;
+    transition: 0.5s;
+}
