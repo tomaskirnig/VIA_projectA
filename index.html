@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cryptocurrency Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"> 
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-5">Cryptocurrency Tracker</h1>
+        <form id="crypto-form" class="mt-4">
+            <div class="form-group">
+                <label for="crypto-select">Select Cryptocurrency:</label>
+                <select id="crypto-select" class="form-control">
+                    <!-- Options will be populated dynamically -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="currency-select">Select Currency:</label>
+                <select id="currency-select" class="form-control">
+                    <option value="usd">US Dollar (USD)</option>
+                    <option value="eur">Euro (EUR)</option>
+                    <option value="gbp">British Pound (GBP)</option>
+                    <option value="czk">Czech Crown (CZK)</option>
+                    <!-- Add more options as needed -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="date-range">Select Time Period:</label>
+                <select id="date-range" class="form-control">
+                    <option value="7">1 Week</option>
+                    <option value="30">1 Month</option>
+                    <option value="90">3 Months</option>
+                    <option value="365">1 Year</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Get Prices</button>
+        </form>
+
+        <!-- Container for coin sections -->
+        <div id="coin-container" class="mt-5">
+            <!-- Individual coin sections will be added here -->
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
