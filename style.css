@@ -7,6 +7,10 @@ button:hover {
     border-radius: 10px; 
 }
 
+#invested-sum{
+    text-decoration: underline;
+}
+
 .container h1{
     text-align: center;
 }
@@ -28,4 +32,19 @@ button:hover {
 .portfolio-item:hover{
     background-color: #f4f4f4;
     transition: 0.3s;
+}
+
+.header-io-div{
+    width: 57%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-io-div input{
+    width: 45%;
+}
+
+.header-io-div label{
+    margin: 0;
 }
