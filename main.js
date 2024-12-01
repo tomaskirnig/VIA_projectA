@@ -151,6 +151,14 @@ function renderCoinSection(cryptoId, currency, timeFrame) {
     const portfolioItem = portfolio.find(item => item.cryptoId === cryptoId);
     const investedAmount = portfolioItem?.investedAmount || '0';
 
+    if (portfolioItem && portfolioItem.currency !== currency) {
+        portfolioItem.currency = currency;
+        
+        localStorage.setItem('portfolio', JSON.stringify(portfolio));
+
+        loadPortfolio();
+    }
+
     const coinContainer = document.getElementById('coin-container');
     const coinSection = document.createElement('div');
     coinSection.id = coinSectionId;
