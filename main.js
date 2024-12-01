@@ -9,13 +9,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const cryptoId = document.getElementById('crypto-select').value;
         const currency = document.getElementById('currency-select').value;
+        const timeFrame = document.getElementById('date-range').value;
 
-        if (!cryptoId || !currency) {
+        if (!cryptoId || !currency || !timeFrame) {
             alert('Please make sure all fields are selected.');
             return;
         }
 
-        renderCoinSection(cryptoId, currency);
+        renderCoinSection(cryptoId, currency, timeFrame);
     });
 });
 
@@ -24,18 +25,10 @@ function loadPortfolio() {
     const portfolioList = document.getElementById('portfolio-list');
     portfolioList.innerHTML = ''; // Clear existing items
 
-    // Ensure all items in portfolio are objects with valid `cryptoId` and `currency`
-    //portfolio = portfolio.filter(item => item && typeof item.cryptoId === 'string' && typeof item.currency === 'string');
-
     portfolio.forEach(({ cryptoId, currency, investedAmount }) => {
         addPortfolioItem(cryptoId, currency, investedAmount, portfolioList); 
-        renderCoinSection(cryptoId, currency); 
     });
-
-    // Save sanitized portfolio back to local storage
-    localStorage.setItem('portfolio', JSON.stringify(portfolio));
 }
-
 
 function addPortfolioItem(cryptoId, currency, investedAmount, portfolioList) {
     const listItem = document.createElement('li');
@@ -45,6 +38,10 @@ function addPortfolioItem(cryptoId, currency, investedAmount, portfolioList) {
     if (investedAmount && investedAmount > 0) {
         const investedAmountDiv = document.createElement('div');
         investedAmountDiv.textContent = `Invested: $${parseFloat(investedAmount).toFixed(2)}`;
+        listItem.appendChild(investedAmountDiv);
+    }else{
+        const investedAmountDiv = document.createElement('div');
+        investedAmountDiv.textContent = `Invested: $0.00`;
         listItem.appendChild(investedAmountDiv);
     }
 
@@ -60,13 +57,11 @@ function addPortfolioItem(cryptoId, currency, investedAmount, portfolioList) {
     portfolioList.appendChild(listItem);
 }
 
-
-
 function deletePortfolioItem(cryptoId, currency) {
     let portfolio = JSON.parse(localStorage.getItem('portfolio')) || [];
 
     // Remove the coin from the portfolio
-    portfolio = portfolio.filter(item => item.cryptoId !== cryptoId || item.currency !== currency);
+    portfolio = portfolio.filter(item => item.cryptoId !== cryptoId);
     localStorage.setItem('portfolio', JSON.stringify(portfolio));
 
     // Remove the coin from the portfolio list
@@ -74,14 +69,24 @@ function deletePortfolioItem(cryptoId, currency) {
     const listItem = Array.from(portfolioList.children).find(
         item => item.textContent === `${cryptoId.charAt(0).toUpperCase() + cryptoId.slice(1)} (${currency.toUpperCase()})`
     );
+
     if (listItem) {
         portfolioList.removeChild(listItem);
     }
 
+    // Reset only the invested amount input in the coin section
+    const coinSection = document.getElementById(`coin-section-${cryptoId}-${currency}`);
+    if (coinSection) {
+        const amountInput = coinSection.querySelector('.amount-input');
+        if (amountInput) {
+            amountInput.value = ''; // Reset the input to an empty value
+        }
+    }
+
+    updateSumListHeader();
+    loadPortfolio();
     alert(`${cryptoId} (${currency}) has been removed from your portfolio.`);
 }
-
-
 
 function saveToPortfolio(cryptoId, currency, investedAmount) {
     let portfolio = JSON.parse(localStorage.getItem('portfolio')) || [];
@@ -93,15 +98,14 @@ function saveToPortfolio(cryptoId, currency, investedAmount) {
     }
 
     // Add the new coin to the portfolio
-    portfolio.push({ cryptoId, currency, investedAmount: 0 });
+    portfolio.push({ cryptoId, currency, investedAmount });
     localStorage.setItem('portfolio', JSON.stringify(portfolio));
 
     const portfolioList = document.getElementById('portfolio-list');
-    addPortfolioItem(cryptoId, currency, 0, portfolioList);
+    addPortfolioItem(cryptoId, currency, investedAmount, portfolioList);
 
     alert(`${cryptoId} (${currency}) has been added to your portfolio.`);
 }
-
 
 function populateCryptoDropdown() {
     console.log('Fetching cryptocurrency list...');
@@ -114,7 +118,7 @@ function populateCryptoDropdown() {
             order: 'market_cap_desc', // Order by market cap descending
             per_page: 250, // Max coins per page
             page: 1, // First page
-            sparkline: false // Exclude sparkline data for simplicity
+            sparkline: false // Exclude sparkline data (some aditional data idk)
         },
         success: function (data) {
             const select = document.getElementById('crypto-select');
@@ -124,31 +128,6 @@ function populateCryptoDropdown() {
                 option.textContent = `${coin.name} (${coin.symbol.toUpperCase()})`;
                 select.appendChild(option);
             });
-
-            // Fetch additional coins (optional)
-            $.ajax({
-                url: 'https://api.coingecko.com/api/v3/coins/markets',
-                method: 'GET',
-                dataType: 'json',
-                data: {
-                    vs_currency: 'usd',
-                    order: 'market_cap_desc',
-                    per_page: 50, // Fetch the next 50 coins
-                    page: 2,
-                    sparkline: false
-                },
-                success: function (data) {
-                    data.forEach(coin => {
-                        const option = document.createElement('option');
-                        option.value = coin.id;
-                        option.textContent = `${coin.name} (${coin.symbol.toUpperCase()})`;
-                        select.appendChild(option);
-                    });
-                },
-                error: function (error) {
-                    console.error('Error fetching additional coins:', error);
-                }
-            });
         },
         error: function (error) {
             console.error('Error fetching cryptocurrency list:', error);
@@ -157,12 +136,13 @@ function populateCryptoDropdown() {
     });
 }
 
-function renderCoinSection(cryptoId, currency) {
+function renderCoinSection(cryptoId, currency, timeFrame) {
     const coinSectionId = `coin-section-${cryptoId}-${currency}`;
 
     // Check if coin section exists
     const existingSection = document.getElementById(coinSectionId);
     if (existingSection) {
+        alert(`Coin section for ${cryptoId} (${currency}) already exists.`);
         console.log(`Coin section for ${cryptoId} (${currency}) already exists.`);
         return;
     }
@@ -200,7 +180,7 @@ function renderCoinSection(cryptoId, currency) {
     amountInput.type = 'number';
     amountInput.min = '0';
     amountInput.className = 'form-control amount-input';
-    amountInput.placeholder = 'Enter invested amount (USD)';
+    amountInput.placeholder = '0';
     amountInput.value = investedAmount;
     amountInput.style.display = portfolioItem ? 'inline-block' : 'none';
     amountInput.addEventListener('focusout', () => saveInvestedAmount(cryptoId, currency, amountInput.value));
@@ -208,7 +188,7 @@ function renderCoinSection(cryptoId, currency) {
     // Toggle between adding and removing coin from portfolio
     portfolioBtn.addEventListener('click', function () {
         if (portfolioBtn.textContent === 'Add to Portfolio') {
-            saveToPortfolio(cryptoId, currency);
+            saveToPortfolio(cryptoId, currency, investedAmount);
             portfolioBtn.textContent = 'Remove from Portfolio';
             portfolioBtn.className = 'btn btn-danger btn-sm';
 
@@ -252,6 +232,7 @@ function renderCoinSection(cryptoId, currency) {
         <option value="90">3 Months</option>
         <option value="365">1 Year</option>
     `;
+    timeFrameSelector.value = timeFrame;
 
     const currentPriceDiv = document.createElement('div');
     currentPriceDiv.className = 'current-price';
@@ -270,8 +251,6 @@ function renderCoinSection(cryptoId, currency) {
     fetchCurrentPrice(cryptoId, currency, currentPriceDiv, coinTitle);
     fetchHistoricalDataAndInitializeChart(cryptoId, currency, canvas.id, timeFrameSelector);
 }
-
-
 
 // Function to fetch current price and update the coin section
 function fetchCurrentPrice(cryptoId, currency, currentPriceDiv, coinTitle) {
@@ -304,7 +283,7 @@ function fetchCurrentPrice(cryptoId, currency, currentPriceDiv, coinTitle) {
     });
 }
 
-// Function to fetch 1 year of historical data and initialize the chart
+// Function to fetch 1 year of historical data and draw the chart
 function fetchHistoricalDataAndInitializeChart(cryptoId, currency, canvasId, timeFrameSelector) {
     const url = `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart`;
     console.log(`Fetching historical data for ${cryptoId}...`);
@@ -318,15 +297,15 @@ function fetchHistoricalDataAndInitializeChart(cryptoId, currency, canvasId, tim
             days: "365", // Fetch data for 1 year
         },
         success: function (data) {
-            const allData = data.prices; // Store all price data for 1 year
+            const allData = data.prices; // Array of [timestamp, price] pairs
 
             // Default chart display (1 Year)
             updateChart(allData, 365, canvasId);
 
-            // Handle time frame changes
+            // Bind the time frame change event to this specific selector
             timeFrameSelector.addEventListener('change', function () {
                 const selectedTimeFrame = parseInt(this.value, 10); // Get selected time frame
-                updateChart(allData, selectedTimeFrame, canvasId); // Update chart
+                updateChart(allData, selectedTimeFrame, canvasId); 
             });
         },
         error: function (error) {
@@ -336,9 +315,9 @@ function fetchHistoricalDataAndInitializeChart(cryptoId, currency, canvasId, tim
     });
 }
 
+
 // Function to update the chart based on the selected time frame
 function updateChart(allData, timeFrame, canvasId) {
-    // Filter data based on the selected time frame
     const now = new Date();
     const filteredData = allData.filter(value => {
         const date = new Date(value[0]);
@@ -356,7 +335,7 @@ function updateChart(allData, timeFrame, canvasId) {
 function renderChart(labels, data, canvasId) {
     const ctx = document.getElementById(canvasId).getContext('2d');
 
-    // Destroy existing chart if it exists
+    // Delete existing chart if it exists
     if (ctx.chart) {
         ctx.chart.destroy();
     }
@@ -405,16 +384,16 @@ function saveInvestedAmount(cryptoId, currency, amount) {
     }
 
     let portfolio = JSON.parse(localStorage.getItem('portfolio')) || [];
-    const itemIndex = portfolio.findIndex(item => item.cryptoId === cryptoId && item.currency === currency);
+    const itemIndex = portfolio.findIndex(item => item.cryptoId === cryptoId);
 
     if (itemIndex !== -1) {
         portfolio[itemIndex].investedAmount = parseFloat(amount).toFixed(2);
         localStorage.setItem('portfolio', JSON.stringify(portfolio));
-        loadPortfolio(); // Reload portfolio 
         console.log(`Invested amount of ${amount} USD saved for ${cryptoId} (${currency}).`);
     }
 
     updateSumListHeader();
+    loadPortfolio();
 }
 
 function getSumInvestedAmount() {
@@ -429,6 +408,10 @@ function getSumInvestedAmount() {
 function updateSumListHeader() {
     const portfolioHeader = document.getElementById('portfolio-container').getElementsByTagName('h4')[0];
     let sum = getSumInvestedAmount();
+
+    if(sum < 0 || isNaN(sum)){
+        sum = 0;
+    }
 
     portfolioHeader.textContent = 'Your Portfolio: ';
 
